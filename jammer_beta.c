@@ -1190,6 +1190,8 @@ int32_t jammer_beta_app(void* p) {
 
     settings_load(state);
 
+    nrf24_spi_users_reset();
+
     state->is_running = false;
     state->is_stop = true;
     state->is_modules_connected = false;
@@ -1593,6 +1595,12 @@ int32_t jammer_beta_app(void* p) {
                 }
             }
         }
+    }
+
+    // Ensure the jamming thread is stopped before cleanup.
+    if(state->is_running) {
+        state->is_stop = true;
+        furi_thread_join(state->thread);
     }
 
     settings_save(state);

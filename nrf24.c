@@ -5,7 +5,11 @@
 #include <assert.h>
 #include <string.h>
 
-uint8_t nrf24_spi_users_count = 0;  
+uint8_t nrf24_spi_users_count = 0;
+
+void nrf24_spi_users_reset(void) {
+    nrf24_spi_users_count = 0;
+}
 
 void nrf24_init(nrf24_device_t* device) {
     if(device->initialized) return;

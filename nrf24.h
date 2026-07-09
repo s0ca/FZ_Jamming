@@ -154,6 +154,11 @@ uint8_t nrf24_set_tx_mode(nrf24_device_t* device);
 
 /* High level API */
 
+/** Reset SPI user counter: call at app startup to recover from stale state
+ *  after a crash or unclean exit.
+ */
+void nrf24_spi_users_reset(void);
+
 /** Must call this before using any other nrf24 API
  * 
  */
