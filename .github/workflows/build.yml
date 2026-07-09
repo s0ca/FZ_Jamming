@@ -1,30 +1,18 @@
-name: "FAP: Build for multiple SDK sources"
-# This will build your app for dev and release channels on GitHub. 
-# It will also build your app every day to make sure it's up to date with the latest SDK changes.
-# See https://github.com/marketplace/actions/build-flipper-application-package-fap for more information
+name: "Build & Release"
 
 on:
   push:
-    ## put your main branch name under "branches"
-    #branches: 
-    #  - master 
+    branches:
+      - main
   pull_request:
-  schedule: 
-    # do a build every day
-    - cron: "1 1 * * *"
+
+permissions:
+  contents: write
 
 jobs:
-  ufbt-build:
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: dev channel
-            sdk-channel: dev
-          - name: release channel
-            sdk-channel: release
-          # You can add unofficial channels here. See ufbt action docs for more info.
-    name: 'ufbt: Build for ${{ matrix.name }}'
+    name: "Build with ufbt"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,10 +20,28 @@ jobs:
         uses: flipperdevices/flipperzero-ufbt-action@v0.1
         id: build-app
         with:
-          sdk-channel: ${{ matrix.sdk-channel }}
-      - name: Upload app artifacts
+          sdk-channel: release
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          # See ufbt action docs for other output variables
-          name: ${{ github.event.repository.name }}-${{ steps.build-app.outputs.suffix }}
+          name: jammer_beta
           path: ${{ steps.build-app.outputs.fap-artifacts }}
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: "Publish to GitHub Releases"
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jammer_beta
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.sha }}
+          name: "Build ${{ github.sha }}"
+          files: "*.fap"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
