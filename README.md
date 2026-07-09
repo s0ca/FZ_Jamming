@@ -1,4 +1,4 @@
-# nRF24 Jammer BETA — Flipper Zero
+# nRF24 Jammer BETA - Flipper Zero
 
 A 2.4 GHz RF noise/interference tool for the Flipper Zero, driven by one to four
 **nRF24L01+** modules. It provides broadband sweeping and single‑channel
@@ -11,7 +11,7 @@ a fully code‑drawn UI (no bitmap assets).
 
 ---
 
-## ⚠️ Legal disclaimer — read this first
+## ⚠️ Legal disclaimer - read this first
 
 Transmitting a continuous carrier or spamming packets on the 2.4 GHz band is
 **radio jamming**. In most countries (US: FCC, EU: RED/national regulators, etc.)
@@ -52,7 +52,7 @@ The authors accept no liability.
 - Support for **1 to 4 nRF24L01+ modules** running in parallel.
 - **Separate** vs **Together** multi‑module strategies.
 - Adjustable **per‑channel dwell** for the Bluetooth sweep.
-- Clean, fully **code‑drawn UI** (vertical list menu, live status screens) — no
+- Clean, fully **code‑drawn UI** (vertical list menu, live status screens) no
   PNG assets, small `.fap`.
 - Persistent settings.
 
@@ -68,7 +68,7 @@ The authors accept no liability.
 The app enables the Flipper's **5 V OTG rail (pin 1)** on start. Power your
 module according to its board:
 
-- **Bare nRF24L01+** modules are **3.3 V** — feed VCC from **pin 9 (3V3)**, never 5 V.
+- **Bare nRF24L01+** modules are **3.3 V** feed VCC from **pin 9 (3V3)**, never 5 V.
 - **PA/LNA boards with an on‑board regulator + level shifter** usually accept
   **5 V on pin 1**. Check your board's silkscreen/spec.
 
@@ -87,9 +87,9 @@ pins. Pin numbers below are the physical Flipper GPIO header pins.
 | MISO   | 3           | PA6     |
 | MOSI   | 2           | PA7     |
 | GND    | 8 / 11 / 18 | GND     |
-| VCC    | 9 (3V3) *or* 1 (5V) — see [Hardware](#hardware) | — |
+| VCC    | 9 (3V3) *or* 1 (5V) see [Hardware](#hardware) | - |
 
-### Per‑module CE / CSN — "Default" SPI mode (up to 4 modules)
+### Per‑module CE / CSN - "Default" SPI mode (up to 4 modules)
 
 | Module | CE (pin) | CSN (pin) |
 |--------|----------|-----------|
@@ -113,7 +113,7 @@ occupies pin 4. In that case select **Settings → SPI Pin → Extra 7**. Only
 | CSN    | 7  (PC3)    |
 
 On boot the app auto‑detects how many modules respond and shows the count. If
-none are found you'll see a **"No module"** screen — check wiring and power.
+none are found you'll see a **"No module"** screen - check wiring and power.
 
 ---
 
@@ -196,23 +196,23 @@ the band. Press **OK** to start; **Back** to stop.
 
 While jamming:
 
-- **OK** — toggle **Freeze**. In *HOP* it sweeps; in *HOLD* it stops on the
+- **OK** - toggle **Freeze**. In *HOP* it sweeps; in *HOLD* it stops on the
   current channel and concentrates **every module on that single frequency**.
-- **Up / Down / Left / Right** — while frozen, tune the held channel
+- **Up / Down / Left / Right** - while frozen, tune the held channel
   (hold a key to sweep quickly). The screen shows the live frequency in MHz.
 
 The hop pattern depends on **Settings → Bluetooth**:
 
-- **List** — cycles a curated subset of channels. Fewer channels ⇒ each is
+- **List** - cycles a curated subset of channels. Fewer channels ⇒ each is
   revisited more often ⇒ more energy per targeted channel (but channels outside
   the list are never hit).
-- **Random** — random channels in the BT band (2–80 / 2402–2480 MHz).
-- **Bruteforce** — linear sweep of the full BT band (channels 2–80).
+- **Random** - random channels in the BT band (2–80 / 2402–2480 MHz).
+- **Bruteforce** - linear sweep of the full BT band (channels 2–80).
 
 ### Drone
 
 Broadband **continuous‑carrier** sweep over the **entire nRF24 range
-(channels 0–125, 2400–2525 MHz)** — wider than Bluetooth to cover common 2.4 GHz
+(channels 0–125, 2400–2525 MHz)** - wider than Bluetooth to cover common 2.4 GHz
 drone control/telemetry links. **OK** start, **Back** stop. Method
 (**Bruteforce** or **Random**) is set in **Settings → Drone**.
 
@@ -221,12 +221,12 @@ drone control/telemetry links. **OK** start, **Back** stop. Method
 Targets 2.4 GHz Wi‑Fi by **spamming packets** across the channel's ~22 MHz width.
 Press **OK** to open the sub‑screen:
 
-- **Up / Down** — switch mode:
-  - **All channels** — sweeps Wi‑Fi channels 1–13 continuously.
-  - **Select channel** — pick one Wi‑Fi channel.
+- **Up / Down** - switch mode:
+  - **All channels** - sweeps Wi‑Fi channels 1–13 continuously.
+  - **Select channel** - pick one Wi‑Fi channel.
 - If **Select channel**: press **OK**, then **Up/Down/Left/Right** to choose the
   Wi‑Fi channel (**1–14**), then **OK** to start.
-- **Back** — step back / stop.
+- **Back** - step back / stop.
 
 Each Wi‑Fi channel _n_ is mapped to nRF24 channels `(n‑1)·5 + 1` … `+ 23` to
 cover the whole 22 MHz Wi‑Fi channel.
@@ -236,10 +236,10 @@ cover the whole 22 MHz Wi‑Fi channel.
 Targets **Bluetooth Low Energy**. Press **OK** to open, **Up/Down** to choose,
 **OK** to start:
 
-- **Advertising channels** — spams packets on the 3 BLE advertising channels
+- **Advertising channels** - spams packets on the 3 BLE advertising channels
   (nRF24 channels 2 / 26 / 80 = 2402 / 2426 / 2480 MHz). This is what disrupts
   device discovery/pairing.
-- **Data channels** — continuous‑carrier sweep across the BLE data channels
+- **Data channels** - continuous‑carrier sweep across the BLE data channels
   (even channels 2…80).
 
 ### Zigbee
@@ -253,19 +253,19 @@ mapped to its nRF24 equivalent (`4 + 5·(z‑11)` … `+2`). **OK** start,
 A **free‑range** mode where you define the band yourself.
 
 1. Press **OK**: you're in **Set Start**.
-   - **Up / Down** — set the start channel (0–125). Tap repeatedly or hold to
+   - **Up / Down** - set the start channel (0–125). Tap repeatedly or hold to
      move faster (×1 → ×9 → ×90 acceleration).
-   - **Left / Right** — switch the **Mode**:
-     - **Channel switching** — continuous carrier swept over the range.
-     - **Packet sending** — packet spam over the range.
-   - **OK** — confirm and move to **Set Stop**.
+   - **Left / Right** - switch the **Mode**:
+     - **Channel switching** - continuous carrier swept over the range.
+     - **Packet sending** - packet spam over the range.
+   - **OK** - confirm and move to **Set Stop**.
 2. **Set Stop**: same keys to set the stop channel (must be **>** start).
    **OK** starts jamming.
 3. **Back** steps back through the screens.
 
 ### Settings
 
-Opens the configuration list — see [Settings reference](#settings-reference).
+Opens the configuration list - see [Settings reference](#settings-reference).
 **OK** or **Back** saves.
 
 ### Infos
@@ -282,16 +282,16 @@ saves.
 | Setting | Values | Meaning |
 |---------|--------|---------|
 | **SPI Pin**   | `Default 4` / `Extra 7` | CSN pin for module 1. `Default 4` = standalone nRF24 (CSN on pin 4). `Extra 7` = 2‑in‑1 nRF24+CC1101 board (CSN on pin 7, single module). |
-| **Modules**   | `Separate` / `Together` | Multi‑module strategy — see below. |
+| **Modules**   | `Separate` / `Together` | Multi‑module strategy - see below. |
 | **Bluetooth** | `List` / `Random` / `Brute` | Hop pattern for the Bluetooth profile. |
 | **Drone**     | `Brute` / `Random` | Sweep pattern for the Drone profile. |
-| **BT Dwell**  | `0 / 100 / 200 / 400 us` | Time spent per channel during the Bluetooth sweep — see below. |
+| **BT Dwell**  | `0 / 100 / 200 / 400 us` | Time spent per channel during the Bluetooth sweep - see below. |
 
 ### Modules: Separate vs Together
 
-- **Together** — all modules are written to the **same channel** at the same
+- **Together** - all modules are written to the **same channel** at the same
   time. Maximum power on one channel at a time (redundant carriers stack).
-- **Separate** — the modules are **spread across the band** so several distinct,
+- **Separate** - the modules are **spread across the band** so several distinct,
   well‑separated channels are jammed **simultaneously**. With _N_ modules on the
   Bluetooth sweep, module _i_ is offset by roughly `i · (band / N)`, so the _N_
   carriers form an even comb that sweeps together. This is the more effective
@@ -305,12 +305,12 @@ A very tight sweep can hop away before the carrier is fully established, so the
 energy actually radiated per channel is poor. **BT Dwell** inserts a short pause
 after each channel write so the carrier settles:
 
-- `0 us` — fastest sweep (original behavior), highest revisit rate, weakest
+- `0 us` - fastest sweep (original behavior), highest revisit rate, weakest
   per‑visit presence.
-- `100–400 us` — fewer revisits per second, but a cleaner, stronger carrier on
+- `100–400 us` - fewer revisits per second, but a cleaner, stronger carrier on
   each visited channel.
 
-There is **no universally best value** — it depends on the target and the number
+There is **no universally best value** - it depends on the target and the number
 of modules. Treat it as a knob to experiment with.
 
 ---
@@ -330,7 +330,7 @@ The app uses two jamming techniques depending on the profile:
 The Bluetooth loop advances **one channel per iteration** (rather than sweeping
 the whole band per iteration). This keeps a well‑defined "current channel" so
 **Freeze** can park exactly there, lets the loop react instantly to stop/freeze,
-and — in **Separate** mode — spreads multiple modules evenly across the band.
+and - in **Separate** mode - spreads multiple modules evenly across the band.
 
 ---
 
@@ -343,13 +343,13 @@ understand why, especially for Bluetooth audio:
   **1600 times per second** across **79 channels** and the master maintains a
   channel map that **actively removes jammed channels** from the hop sequence
   (keeping a spec‑mandated **minimum of ~20 good channels**). So:
-  - **Freeze (single channel) barely affects a hopping audio link** — the link
+  - **Freeze (single channel) barely affects a hopping audio link** - the link
     detects the bad channel and routes around it. Freeze is meant for
     **fixed‑frequency** targets (a device parked on one channel, some
     proprietary 2.4 GHz gear, BLE advertising on a specific channel), not for a
     hopping A2DP stream.
   - To meaningfully disrupt a hopping link you must keep **many** channels bad
-    **at the same time** — which is exactly why **multiple modules in Separate
+    **at the same time** - which is exactly why **multiple modules in Separate
     mode** is the strongest configuration here.
 - **List vs Bruteforce** is a coverage/concentration trade‑off: List hammers a
   few channels hard; Bruteforce spreads thinner over the whole band.
@@ -357,8 +357,8 @@ understand why, especially for Bluetooth audio:
   packet spam or multiple spread carriers are often more disruptive.
 
 Sources on the Bluetooth behavior:
-[Rohde &amp; Schwarz — BR/EDR AFH app note](https://scdn.rohde-schwarz.com/ur/pws/dl_downloads/dl_application/application_notes/1c108/1C108_0e_Bluetooth_BR_EDR_AFH.pdf),
-[Electronics Notes — Bluetooth Classic](https://www.electronics-notes.com/articles/connectivity/bluetooth/bluetooth-classic-technology-operation.php).
+[Rohde &amp; Schwarz - BR/EDR AFH app note](https://scdn.rohde-schwarz.com/ur/pws/dl_downloads/dl_application/application_notes/1c108/1C108_0e_Bluetooth_BR_EDR_AFH.pdf),
+[Electronics Notes - Bluetooth Classic](https://www.electronics-notes.com/articles/connectivity/bluetooth/bluetooth-classic-technology-operation.php).
 
 ---
 
@@ -377,7 +377,7 @@ reloaded on next launch.
 
 ## Credits
 
-- Original project: **W0rthlessS0ul** —
+- Original project: **W0rthlessS0ul** -
   [`FZ_nRF24_jammer`](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer).
 - This enhanced version (Freeze mode, code‑drawn UI, BT‑band bruteforce,
   adjustable dwell, multi‑module spread, Infos screen): **Mathias s0ca**.
@@ -387,7 +387,7 @@ reloaded on next launch.
 
 ## License
 
-Released under the **MIT License** — see [`LICENSE`](LICENSE).
+Released under the **MIT License** - see [`LICENSE`](LICENSE).
 
 This project reuses and modifies code from
 [`FZ_nRF24_jammer`](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer)
