@@ -1,0 +1,10 @@
+App(
+    appid="jammer_beta",
+    name="nRF24 Jammer BETA",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="jammer_beta_app",
+    stack_size=2 * 1024,
+    fap_category="GPIO",
+    fap_icon="jammer_beta.png",  # 10x10 1-bit PNG
+    fap_version="1.5",
+)
