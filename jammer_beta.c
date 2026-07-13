@@ -71,6 +71,7 @@ typedef enum {
     SETTINGS_ITEM_BLUETOOTH_METHOD,
     SETTINGS_ITEM_DRONE_METHOD,
     SETTINGS_ITEM_BT_DWELL,
+    SETTINGS_ITEM_BT_DITHER,
     SETTINGS_ITEM_COUNT
 } SettingsItem;
 
@@ -126,6 +127,7 @@ typedef struct {
 
     bool info_active; // true when the Infos screen is shown
     uint8_t bt_dwell_idx; // index into bt_dwell_us[] (per-channel dwell)
+    uint8_t bt_dither_idx; // index into bt_dither_w[] (per-carrier dither width)
 } PluginState;
 
 typedef enum {
@@ -159,6 +161,11 @@ static const uint8_t zigbee_channels[] =
 static const uint16_t bt_dwell_us[] = {0, 100, 200, 400};
 #define BT_DWELL_COUNT (sizeof(bt_dwell_us) / sizeof(bt_dwell_us[0]))
 
+// Per-carrier dither width (channels): 0 = off, else the carrier micro-hops
+// center +/- w to smear ~(2w+1) MHz instead of a single 1 MHz channel.
+static const uint8_t bt_dither_w[] = {0, 1, 2};
+#define BT_DITHER_COUNT (sizeof(bt_dither_w) / sizeof(bt_dither_w[0]))
+
 static const int ble_channels_count = sizeof(ble_channels) / sizeof(ble_channels[0]);
 static const int zigbee_channels_count = sizeof(zigbee_channels) / sizeof(zigbee_channels[0]);
 
@@ -181,10 +188,11 @@ static void settings_save(PluginState* state) {
         stream_write(stream, (uint8_t*)buffer, strlen(buffer));
         snprintf(buffer, sizeof(buffer), "bt_dwell=%d\n", state->bt_dwell_idx);
         stream_write(stream, (uint8_t*)buffer, strlen(buffer));
+        snprintf(buffer, sizeof(buffer), "bt_dither=%d\n", state->bt_dither_idx);
+        stream_write(stream, (uint8_t*)buffer, strlen(buffer));
         file_stream_close(stream);
     }
 
-    file_stream_close(stream);
     stream_free(stream);
     furi_record_close(RECORD_STORAGE);
 }
@@ -198,6 +206,7 @@ static void settings_load(PluginState* state) {
     state->bluetooth_jam_method = BLUETOOTH_MODE_LIST;
     state->drone_jam_method = DRONE_MODE_BRUTEFORCE;
     state->bt_dwell_idx = 0;
+    state->bt_dither_idx = 0;
 
     if(file_stream_open(
            stream, "/ext/apps_data/jammer/settings.txt", FSAM_READ, FSOM_OPEN_EXISTING)) {
@@ -256,6 +265,13 @@ static void settings_load(PluginState* state) {
                             value++;
                             state->bt_dwell_idx = atoi(value);
                             if(state->bt_dwell_idx >= BT_DWELL_COUNT) state->bt_dwell_idx = 0;
+                        }
+                    } else if(strstr(line, "bt_dither=") != NULL) {
+                        char* value = strchr(line, '=');
+                        if(value != NULL) {
+                            value++;
+                            state->bt_dither_idx = atoi(value);
+                            if(state->bt_dither_idx >= BT_DITHER_COUNT) state->bt_dither_idx = 0;
                         }
                     }
                     line = next_line;
@@ -322,67 +338,84 @@ static void jam_bluetooth(PluginState* state) {
 
     // One channel per loop iteration: keeps a well-defined "current channel"
     // (so a freeze parks exactly there) and reacts instantly to hold/stop.
-    // In separate mode with several modules we do NOT round-robin a single
-    // moving channel (that clusters the carriers on adjacent channels). Instead
-    // we spread the N carriers evenly across the band so they jam N well-
-    // separated channels at the same time -> maximum simultaneous coverage.
+    // In separate mode with several modules we spread the N carriers evenly
+    // across the band. Optionally each carrier is "dithered" (micro-hopped
+    // center +/- w) to smear ~(2w+1) MHz instead of a single 1 MHz channel.
     uint8_t list_idx = 0; // index into bluetooth_channels for LIST method
     uint8_t bf_ch = 2; // sweeping channel for BRUTEFORCE method (BT band starts at 2)
+    static const int8_t dither_off[] = {0, 1, -1, 2, -2};
 
     while(!state->is_stop) {
+        uint8_t n = state->len_modules;
+        uint8_t centers[MAX_NRF24];
+
         if(state->bt_hold) {
-            // Frozen: concentrate every module on the single held channel.
-            for(uint8_t i = 0; i < state->len_modules; i++) {
-                nrf24_write_reg(&nrf24_dev[i], REG_RF_CH, state->bt_hold_channel);
-            }
-            furi_delay_ms(1); // parked: no need to spin the SPI bus flat out
-            continue;
-        }
-
-        // Pick the next channel according to the selected method.
-        // Bruteforce/random stay inside the real BT band: channels 2..80
-        // (2402..2480 MHz). Channels 0-1 are outside BT and were wasted.
-        uint8_t list_base = list_idx; // base index used to spread modules (LIST)
-        uint8_t ch;
-        if(state->bluetooth_jam_method == BLUETOOTH_MODE_RANDOM) {
-            ch = 2 + (furi_hal_random_get() % 79); // 2..80
-        } else if(state->bluetooth_jam_method == BLUETOOTH_MODE_BRUTEFORCE) {
-            ch = bf_ch;
-            bf_ch = (bf_ch >= 80) ? 2 : (bf_ch + 1);
-        } else { // BLUETOOTH_MODE_LIST
-            ch = bluetooth_channels[list_idx];
-            list_idx = (list_idx + 1) % sizeof(bluetooth_channels);
-        }
-
-        // Remember where we are so a freeze parks on the current frequency.
-        state->bt_hold_channel = ch;
-
-        if(is_separate_mode(state) && state->len_modules > 1) {
-            // Spread the N modules evenly across the band: each one holds a
-            // distinct, well-separated channel, so N channels are jammed at once.
-            uint8_t n = state->len_modules;
-            for(uint8_t i = 0; i < n; i++) {
-                uint8_t mch;
-                if(state->bluetooth_jam_method == BLUETOOTH_MODE_RANDOM) {
-                    mch = 2 + (furi_hal_random_get() % 79);
-                } else if(state->bluetooth_jam_method == BLUETOOTH_MODE_BRUTEFORCE) {
-                    mch = 2 + (((ch - 2) + i * (79 / n)) % 79);
-                } else { // BLUETOOTH_MODE_LIST
-                    uint8_t sz = sizeof(bluetooth_channels);
-                    mch = bluetooth_channels[(list_base + i * (sz / n)) % sz];
-                }
-                nrf24_write_reg(&nrf24_dev[i], REG_RF_CH, mch);
-            }
+            // Frozen: every module parks on the single held channel (dither, if
+            // enabled, smears it over a few channels around that frequency).
+            for(uint8_t i = 0; i < n; i++) centers[i] = state->bt_hold_channel;
         } else {
-            for(uint8_t i = 0; i < state->len_modules; i++) {
-                nrf24_write_reg(&nrf24_dev[i], REG_RF_CH, ch);
+            // Pick the next channel according to the selected method.
+            // Bruteforce/random stay inside the real BT band (channels 2..80).
+            uint8_t list_base = list_idx; // base index used to spread modules (LIST)
+            uint8_t ch;
+            if(state->bluetooth_jam_method == BLUETOOTH_MODE_RANDOM) {
+                ch = 2 + (furi_hal_random_get() % 79); // 2..80
+            } else if(state->bluetooth_jam_method == BLUETOOTH_MODE_BRUTEFORCE) {
+                ch = bf_ch;
+                bf_ch = (bf_ch >= 80) ? 2 : (bf_ch + 1);
+            } else { // BLUETOOTH_MODE_LIST
+                ch = bluetooth_channels[list_idx];
+                list_idx = (list_idx + 1) % sizeof(bluetooth_channels);
+            }
+
+            // Remember where we are so a freeze parks on the current frequency.
+            state->bt_hold_channel = ch;
+
+            if(is_separate_mode(state) && n > 1) {
+                // Spread the N modules evenly across the band: each one holds a
+                // distinct, well-separated channel, so N channels are jammed at once.
+                for(uint8_t i = 0; i < n; i++) {
+                    if(state->bluetooth_jam_method == BLUETOOTH_MODE_RANDOM) {
+                        centers[i] = 2 + (furi_hal_random_get() % 79);
+                    } else if(state->bluetooth_jam_method == BLUETOOTH_MODE_BRUTEFORCE) {
+                        centers[i] = 2 + (((ch - 2) + i * (79 / n)) % 79);
+                    } else { // BLUETOOTH_MODE_LIST
+                        uint8_t sz = sizeof(bluetooth_channels);
+                        centers[i] = bluetooth_channels[(list_base + i * (sz / n)) % sz];
+                    }
+                }
+            } else {
+                for(uint8_t i = 0; i < n; i++) centers[i] = ch;
             }
         }
 
-        // Optional per-channel dwell: lets the PLL settle so the carrier
-        // actually radiates on this channel before hopping away.
+        // Emit the carriers. Dither off (w == 0) -> each module sits on its
+        // center. Dither on -> the carriers cycle center, +/-1 ... +/-w so each
+        // one smears over (2w+1) adjacent channels (wider footprint, less power
+        // density per channel).
         uint16_t dwell = bt_dwell_us[state->bt_dwell_idx];
-        if(dwell) furi_delay_us(dwell);
+        uint8_t w = bt_dither_w[state->bt_dither_idx];
+        uint8_t pts = (w == 0) ? 1 : (uint8_t)(2 * w + 1);
+
+        for(uint8_t s = 0; s < pts; s++) {
+            int8_t o = dither_off[s];
+            for(uint8_t i = 0; i < n; i++) {
+                int cc = (int)centers[i] + o;
+                if(cc < 2)
+                    cc = 2;
+                else if(cc > 80)
+                    cc = 80;
+                nrf24_write_reg(&nrf24_dev[i], REG_RF_CH, (uint8_t)cc);
+            }
+            if(pts > 1) {
+                // Dithering: give each smeared channel a balanced short dwell.
+                furi_delay_us(dwell ? dwell : 60);
+            } else if(state->bt_hold) {
+                furi_delay_ms(1); // parked: no need to spin the SPI bus flat out
+            } else if(dwell) {
+                furi_delay_us(dwell);
+            }
+        }
     }
 
     stop_const_carrier(state->len_modules);
@@ -964,6 +997,12 @@ static void render_settings_menu(Canvas* canvas, PluginState* state) {
             snprintf(dwell_buf, sizeof(dwell_buf), "%dus", bt_dwell_us[state->bt_dwell_idx]);
             value = dwell_buf;
             break;
+        case SETTINGS_ITEM_BT_DITHER:
+            label = "BT Dither";
+            value = (state->bt_dither_idx == 0) ? "Off" :
+                    (state->bt_dither_idx == 1) ? "1 ch" :
+                                                  "2 ch";
+            break;
         default:
             break;
         }
@@ -1145,6 +1184,12 @@ static void handle_settings_menu_input(PluginState* state, InputKey key) {
             } else {
                 state->bt_dwell_idx--;
             }
+        } else if(state->selected_setting_item == SETTINGS_ITEM_BT_DITHER) {
+            if(state->bt_dither_idx == 0) {
+                state->bt_dither_idx = BT_DITHER_COUNT - 1;
+            } else {
+                state->bt_dither_idx--;
+            }
         }
         break;
     case InputKeyRight:
@@ -1158,6 +1203,8 @@ static void handle_settings_menu_input(PluginState* state, InputKey key) {
             state->drone_jam_method = (state->drone_jam_method + 1) % DRONE_MODE_COUNT;
         } else if(state->selected_setting_item == SETTINGS_ITEM_BT_DWELL) {
             state->bt_dwell_idx = (state->bt_dwell_idx + 1) % BT_DWELL_COUNT;
+        } else if(state->selected_setting_item == SETTINGS_ITEM_BT_DITHER) {
+            state->bt_dither_idx = (state->bt_dither_idx + 1) % BT_DITHER_COUNT;
         }
         break;
     default:
@@ -1274,15 +1321,32 @@ int32_t jammer_beta_app(void* p) {
 
         if(!state->is_modules_connected) {
             uint8_t max_check = (state->spi_mode == SPI_MODE_EXTRA) ? 1 : MAX_NRF24;
+
+            // Count modules contiguously from slot 0 (jam code addresses modules
+            // as indices 0..len_modules-1, so a gap ends the count). Local
+            // counters mean a noisy pass can never permanently inflate the state.
+            uint8_t found = 0;
             for(uint8_t i = 0; i < max_check; i++) {
-                if(nrf24_check_connected(&nrf24_dev[i])) state->len_modules++;
+                if(nrf24_check_connected(&nrf24_dev[i]))
+                    found++;
+                else
+                    break;
             }
+
             view_port_update(state->view_port);
             furi_delay_ms(100);
-            if(state->len_modules > 0) {
-                for(uint8_t i = 0; i < state->len_modules; i++) {
-                    if(!nrf24_check_connected(&nrf24_dev[i])) state->len_modules--;
-                }
+
+            // Second pass: confirm the same modules are still responding.
+            uint8_t confirmed = 0;
+            for(uint8_t i = 0; i < found; i++) {
+                if(nrf24_check_connected(&nrf24_dev[i]))
+                    confirmed++;
+                else
+                    break;
+            }
+
+            state->len_modules = confirmed;
+            if(confirmed > 0) {
                 view_port_update(state->view_port);
                 furi_delay_ms(2000);
                 state->is_modules_connected = true;

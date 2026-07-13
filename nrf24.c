@@ -284,6 +284,15 @@ uint8_t nrf24_rxpacket(nrf24_device_t* device, uint8_t* packet, uint8_t* packets
             size = rx_pl_wid[1];
         }
 
+        // Datasheet 7.2.3: a reported width of 0 or > 32 means a corrupted
+        // packet -> discard by flushing RX instead of copying garbage.
+        if(size == 0 || size > 32) {
+            nrf24_flush_rx(device);
+            nrf24_write_reg(device, REG_STATUS, RX_DR); // clear bit.
+            *packetsize = 0;
+            return status;
+        }
+
         tx_cmd[0] = R_RX_PAYLOAD;
         nrf24_spi_trx(device, tx_cmd, tmp_packet, size + 1, nrf24_TIMEOUT);
         nrf24_write_reg(device, REG_STATUS, RX_DR); // clear bit.
@@ -313,7 +322,11 @@ uint8_t nrf24_txpacket(nrf24_device_t* device, uint8_t* payload, uint8_t size, b
     nrf24_spi_trx(device, tx, rx, size + 1, nrf24_TIMEOUT);
     nrf24_set_tx_mode(device);
 
-    while(!(status & (TX_DS | MAX_RT))) status = nrf24_status(device);
+    uint32_t tx_start = furi_get_tick();
+    while(!(status & (TX_DS | MAX_RT))) {
+        status = nrf24_status(device);
+        if(furi_get_tick() - tx_start > furi_ms_to_ticks(100)) break; // never hang forever
+    }
 
     if(status & MAX_RT) nrf24_flush_tx(device);
 
@@ -328,7 +341,7 @@ uint8_t nrf24_power_up(nrf24_device_t* device) {
     nrf24_read_reg(device, REG_CONFIG, &cfg, 1);
     cfg = cfg | 2;
     status = nrf24_write_reg(device, REG_CONFIG, cfg);
-    furi_delay_ms(5000);
+    furi_delay_ms(2); // tPUP ~1.5 ms (datasheet) + margin
     return status;
 }
 
@@ -352,7 +365,7 @@ uint8_t nrf24_set_rx_mode(nrf24_device_t* device) {
     status = nrf24_write_reg(device, REG_CONFIG, cfg);
     //nr204_write_reg(REG_EN_RXADDR, 0x03) // Set RX Pipe 0 and 1
     furi_hal_gpio_write(device->ce_pin, true);
-    furi_delay_ms(2000);
+    furi_delay_ms(2); // tSTBY2A ~130 us + margin
     return status;
 }
 
@@ -415,7 +428,7 @@ void nrf24_configure(
 
     nrf24_write_reg(device, REG_RF_CH, channel);
     nrf24_write_reg(device, REG_RF_SETUP, rate);
-    furi_delay_ms(200);
+    furi_delay_ms(10); // was 200 ms; spec ~1.5 ms, margin for the register writes
 }
 
 void nrf24_init_promisc_mode(nrf24_device_t* device, uint8_t channel, uint8_t rate) {
@@ -443,11 +456,6 @@ void nrf24_init_promisc_mode(nrf24_device_t* device, uint8_t channel, uint8_t ra
     furi_delay_ms(100);
 }
 
-void hexlify(uint8_t* in, uint8_t size, char* out) {
-    memset(out, 0, size * 2);
-    for(int i = 0; i < size; i++)
-        snprintf(out + strlen(out), sizeof(out + strlen(out)), "%02X", in[i]);
-}
 
 uint64_t bytes_to_int64(uint8_t* bytes, uint8_t size, bool bigendian) {
     uint64_t ret = 0;
@@ -599,13 +607,15 @@ uint8_t nrf24_find_channel(
 }
 
 bool nrf24_check_connected(nrf24_device_t* device) {
-    uint8_t status = nrf24_status(device);
-
-    if(status != 0x00) {
-        return true;
-    } else {
-        return false;
+    // A real, idle chip returns a stable, plausible STATUS value. An absent or
+    // floating bus typically reads 0x00 (all low) or 0xFF (all high), and noise
+    // makes successive reads disagree. Require several consistent, valid reads.
+    uint8_t first = nrf24_status(device);
+    if(first == 0x00 || first == 0xFF) return false;
+    for(uint8_t i = 0; i < 4; i++) {
+        if(nrf24_status(device) != first) return false;
     }
+    return true;
 }
 
 uint8_t nrf24_set_mac(nrf24_device_t* device, uint8_t mac_addr, uint8_t *mac, uint8_t mlen) {

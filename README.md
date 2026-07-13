@@ -5,7 +5,7 @@ A 2.4 GHz RF noise/interference tool for the Flipper Zero, driven by one to four
 "freeze" jamming across the Bluetooth, BLE, Wi‑Fi, Zigbee and drone bands, with
 a fully code‑drawn UI (no bitmap assets).
 
-> This is heavilly inspired by
+> This is heavily inspired by
 > [`FZ_nRF24_jammer`](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer) by
 > **W0rthlessS0ul**. See [Credits](#credits).
 
@@ -286,6 +286,7 @@ saves.
 | **Bluetooth** | `List` / `Random` / `Brute` | Hop pattern for the Bluetooth profile. |
 | **Drone**     | `Brute` / `Random` | Sweep pattern for the Drone profile. |
 | **BT Dwell**  | `0 / 100 / 200 / 400 us` | Time spent per channel during the Bluetooth sweep - see below. |
+| **BT Dither** | `Off` / `1 ch` / `2 ch` | Per‑carrier dithering — widen each carrier's footprint - see below. |
 
 ### Modules: Separate vs Together
 
@@ -312,6 +313,26 @@ after each channel write so the carrier settles:
 
 There is **no universally best value** - it depends on the target and the number
 of modules. Treat it as a knob to experiment with.
+
+### BT Dither
+
+A single carrier only occupies **1 MHz** (one channel). **BT Dither** makes each
+carrier **micro‑hop around its center channel** so it smears its energy over
+several adjacent channels instead of one:
+
+- `Off` - one carrier = one channel (default, original behavior).
+- `1 ch` - the carrier cycles `center, +1, -1` → ~3 MHz footprint.
+- `2 ch` - the carrier cycles `center, +1, -1, +2, -2` → ~5 MHz footprint.
+
+Dither applies to **both the sweep and the Freeze** mode. It is most useful with
+**Freeze**: instead of parking on a single frequency, the carrier(s) cover a few
+channels around it, which is more forgiving on a target that drifts slightly.
+
+The trade‑off: a wider footprint means **lower power density per channel**. Each
+dithered channel gets a short balanced dwell (the **BT Dwell** value if set,
+otherwise ~60 µs) so the carrier spends comparable time on each. As with dwell,
+it's a knob to test by ear - there is no single best value, and it does not
+defeat AFH hopping (see [limitations](#effectiveness--limitations-honest-notes)).
 
 ---
 
