@@ -607,15 +607,23 @@ uint8_t nrf24_find_channel(
 }
 
 bool nrf24_check_connected(nrf24_device_t* device) {
-    // A real, idle chip returns a stable, plausible STATUS value. An absent or
-    // floating bus typically reads 0x00 (all low) or 0xFF (all high), and noise
-    // makes successive reads disagree. Require several consistent, valid reads.
-    uint8_t first = nrf24_status(device);
-    if(first == 0x00 || first == 0xFF) return false;
-    for(uint8_t i = 0; i < 4; i++) {
-        if(nrf24_status(device) != first) return false;
-    }
-    return true;
+    // Deterministic write-readback probe: write two distinct patterns to a
+    // spare 1-byte register and read them back. A present chip echoes both
+    // exactly; an absent or floating bus returns a constant (0x00/0xFF) and
+    // cannot match two different values. RX_ADDR_P5 is unused by the jamming
+    // paths; we save and restore its previous content.
+    uint8_t saved = 0;
+    nrf24_read_reg(device, REG_RX_ADDR_P5, &saved, 1);
+
+    uint8_t a = 0, b = 0;
+    nrf24_write_reg(device, REG_RX_ADDR_P5, 0xC2);
+    nrf24_read_reg(device, REG_RX_ADDR_P5, &a, 1);
+    nrf24_write_reg(device, REG_RX_ADDR_P5, 0x3D);
+    nrf24_read_reg(device, REG_RX_ADDR_P5, &b, 1);
+
+    nrf24_write_reg(device, REG_RX_ADDR_P5, saved); // restore
+
+    return (a == 0xC2 && b == 0x3D);
 }
 
 uint8_t nrf24_set_mac(nrf24_device_t* device, uint8_t mac_addr, uint8_t *mac, uint8_t mlen) {
