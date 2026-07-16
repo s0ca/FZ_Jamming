@@ -5,6 +5,9 @@ A 2.4 GHz RF noise/interference tool for the Flipper Zero, driven by one to four
 "freeze" jamming across the Bluetooth, BLE, Wi‑Fi, Zigbee and drone bands, with
 a fully code‑drawn UI (no bitmap assets).
 
+
+<p align="center"><img src="docs/img/menu_main.png" width="420" alt="Main menu"></p>
+
 > This is heavily inspired by
 > [`FZ_nRF24_jammer`](https://github.com/W0rthlessS0ul/FZ_nRF24_jammer) by
 > **W0rthlessS0ul**. See [Credits](#credits).
@@ -115,6 +118,8 @@ occupies pin 4. In that case select **Settings → SPI Pin → Extra 7**. Only
 On boot the app auto‑detects how many modules respond and shows the count. If
 none are found you'll see a **"No module"** screen - check wiring and power.
 
+<p align="center"><img src="docs/img/module_status.png" width="360" alt="No module detected"></p>
+
 ---
 
 ## Building &amp; installing
@@ -191,6 +196,8 @@ Frequencies use the nRF24 convention: **channel _k_ = (2400 + _k_) MHz**
 
 ### Bluetooth
 
+
+<p align="center"><img src="docs/img/jam_bt_hop.png" width="340" alt="Bluetooth jamming - HOP"> <img src="docs/img/jam_bt_hold.png" width="340" alt="Bluetooth jamming - HOLD (freeze)"></p>
 Jams **Bluetooth BR/EDR** (Classic) using a **continuous carrier** hopped across
 the band. Press **OK** to start; **Back** to stop.
 
@@ -211,6 +218,8 @@ The hop pattern depends on **Settings → Bluetooth**:
 
 ### Drone
 
+
+<p align="center"><img src="docs/img/jam_drone.png" width="360" alt="Drone jamming"></p>
 Broadband **continuous‑carrier** sweep over the **entire nRF24 range
 (channels 0–125, 2400–2525 MHz)** - wider than Bluetooth to cover common 2.4 GHz
 drone control/telemetry links. **OK** start, **Back** stop. Method
@@ -218,6 +227,8 @@ drone control/telemetry links. **OK** start, **Back** stop. Method
 
 ### WiFi
 
+
+<p align="center"><img src="docs/img/wifi_mode.png" width="340" alt="WiFi mode select"> <img src="docs/img/wifi_channel.png" width="340" alt="WiFi channel select"></p>
 Targets 2.4 GHz Wi‑Fi by **spamming packets** across the channel's ~22 MHz width.
 Press **OK** to open the sub‑screen:
 
@@ -233,6 +244,8 @@ cover the whole 22 MHz Wi‑Fi channel.
 
 ### BLE
 
+
+<p align="center"><img src="docs/img/ble_menu.png" width="360" alt="BLE type select"></p>
 Targets **Bluetooth Low Energy**. Press **OK** to open, **Up/Down** to choose,
 **OK** to start:
 
@@ -244,12 +257,16 @@ Targets **Bluetooth Low Energy**. Press **OK** to open, **Up/Down** to choose,
 
 ### Zigbee
 
+
+<p align="center"><img src="docs/img/jam_zigbee.png" width="360" alt="Zigbee jamming"></p>
 **Packet‑spam** across the 16 Zigbee channels (11–26). Each Zigbee channel is
 mapped to its nRF24 equivalent (`4 + 5·(z‑11)` … `+2`). **OK** start,
 **Back** stop.
 
 ### Misc
 
+
+<p align="center"><img src="docs/img/misc_config.png" width="340" alt="Misc config"> <img src="docs/img/misc_running.png" width="340" alt="Misc running"></p>
 A **free‑range** mode where you define the band yourself.
 
 1. Press **OK**: you're in **Set Start**.
@@ -270,12 +287,16 @@ Opens the configuration list - see [Settings reference](#settings-reference).
 
 ### Infos
 
+
+<p align="center"><img src="docs/img/infos.png" width="360" alt="Infos screen"></p>
 Shows app name, author and revision. **Back** returns.
 
 ---
 
 ## Settings reference
 
+
+<p align="center"><img src="docs/img/settings.png" width="420" alt="Settings list"></p>
 Navigate with **Up/Down**; change a value with **Left/Right**; **OK**/**Back**
 saves.
 
