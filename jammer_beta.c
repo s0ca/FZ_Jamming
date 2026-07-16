@@ -193,6 +193,7 @@ static void settings_save(PluginState* state) {
         file_stream_close(stream);
     }
 
+    file_stream_close(stream);
     stream_free(stream);
     furi_record_close(RECORD_STORAGE);
 }
@@ -352,7 +353,8 @@ static void jam_bluetooth(PluginState* state) {
         if(state->bt_hold) {
             // Frozen: every module parks on the single held channel (dither, if
             // enabled, smears it over a few channels around that frequency).
-            for(uint8_t i = 0; i < n; i++) centers[i] = state->bt_hold_channel;
+            for(uint8_t i = 0; i < n; i++)
+                centers[i] = state->bt_hold_channel;
         } else {
             // Pick the next channel according to the selected method.
             // Bruteforce/random stay inside the real BT band (channels 2..80).
@@ -385,7 +387,8 @@ static void jam_bluetooth(PluginState* state) {
                     }
                 }
             } else {
-                for(uint8_t i = 0; i < n; i++) centers[i] = ch;
+                for(uint8_t i = 0; i < n; i++)
+                    centers[i] = ch;
             }
         }
 
@@ -1321,32 +1324,15 @@ int32_t jammer_beta_app(void* p) {
 
         if(!state->is_modules_connected) {
             uint8_t max_check = (state->spi_mode == SPI_MODE_EXTRA) ? 1 : MAX_NRF24;
-
-            // Count modules contiguously from slot 0 (jam code addresses modules
-            // as indices 0..len_modules-1, so a gap ends the count). Local
-            // counters mean a noisy pass can never permanently inflate the state.
-            uint8_t found = 0;
             for(uint8_t i = 0; i < max_check; i++) {
-                if(nrf24_check_connected(&nrf24_dev[i]))
-                    found++;
-                else
-                    break;
+                if(nrf24_check_connected(&nrf24_dev[i])) state->len_modules++;
             }
-
             view_port_update(state->view_port);
             furi_delay_ms(100);
-
-            // Second pass: confirm the same modules are still responding.
-            uint8_t confirmed = 0;
-            for(uint8_t i = 0; i < found; i++) {
-                if(nrf24_check_connected(&nrf24_dev[i]))
-                    confirmed++;
-                else
-                    break;
-            }
-
-            state->len_modules = confirmed;
-            if(confirmed > 0) {
+            if(state->len_modules > 0) {
+                for(uint8_t i = 0; i < state->len_modules; i++) {
+                    if(!nrf24_check_connected(&nrf24_dev[i])) state->len_modules--;
+                }
                 view_port_update(state->view_port);
                 furi_delay_ms(2000);
                 state->is_modules_connected = true;
